@@ -25,12 +25,25 @@ const paletteStore = usePaletteStore()
 const message = useMessage()
 const dialog = useDialog()
 
+const { showEntrance, workspaceReady, checkEntrance, onEntranceComplete, playWorkspaceEntranceIfReady } = useEntrance()
+
 const showExportDrawing = ref(false)
 const showExportBom = ref(false)
 const showImportPreview = ref(false)
 const pendingFile = ref<File | null>(null)
 const previewUrl = ref('')
 const importGridSize = ref({ width: 50, height: 50 })
+const importPreviewRef = ref<HTMLElement | null>(null)
+
+const { fadeIn } = useGsapMotion()
+
+watch(showImportPreview, (show) => {
+  if (!show) return
+  nextTick(() => {
+    const img = importPreviewRef.value?.querySelector('img')
+    fadeIn(img)
+  })
+})
 
 async function handleImport(file: File) {
   pendingFile.value = file
@@ -66,7 +79,7 @@ watch(
   () => scheduleSave(),
 )
 
-onMounted(() => {
+function initWorkspace() {
   if (hasDraft()) {
     const draft = load()
     if (draft) {
@@ -84,13 +97,29 @@ onMounted(() => {
   }
 
   if (!canvasStore.selectedColorId && paletteStore.activePalette.colors.length > 0) {
-    canvasStore.setSelectedColor(paletteStore.activePalette.colors[0].id)
+    const first = paletteStore.activePalette.colors[0]
+    if (first) canvasStore.setSelectedColor(first.id)
+  }
+}
+
+function handleEntranceComplete() {
+  onEntranceComplete()
+  initWorkspace()
+}
+
+onMounted(() => {
+  checkEntrance()
+  if (!showEntrance.value) {
+    initWorkspace()
+    playWorkspaceEntranceIfReady()
   }
 })
 </script>
 
 <template>
-  <div class="workspace">
+  <EntranceScreen v-if="showEntrance" @complete="handleEntranceComplete" />
+
+  <div class="workspace" :class="{ 'workspace--hidden': showEntrance && !workspaceReady }">
     <AppHeader
       @import-image="handleImport"
       @export-drawing="showExportDrawing = true"
@@ -102,12 +131,16 @@ onMounted(() => {
       <SidePanel />
     </div>
 
-    <NModal v-model:show="showImportPreview" preset="card" title="确认导入图片" style="width: 480px">
-      <div v-if="previewUrl" class="import-preview">
+    <NModal v-model:show="showImportPreview" preset="card" title="确认导入图片" class="import-modal" style="width: 480px">
+      <div v-if="previewUrl" ref="importPreviewRef" class="import-preview">
         <img :src="previewUrl" alt="预览">
       </div>
-      <p style="font-size: 13px; color: #666; margin-top: 12px">
-        将按原图宽高比生成 {{ importGridSize.width }}×{{ importGridSize.height }} 图纸（{{ paletteStore.activePalette.name }}）
+      <div class="import-meta">
+        <span class="import-meta-tag">{{ importGridSize.width }}×{{ importGridSize.height }}</span>
+        <span class="import-meta-text">{{ paletteStore.activePalette.name }}</span>
+      </div>
+      <p class="import-hint">
+        将按原图宽高比生成图纸，所有处理均在本地完成
       </p>
       <template #footer>
         <NSpace justify="end">
@@ -135,17 +168,51 @@ onMounted(() => {
 </template>
 
 <style scoped>
+.workspace--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .import-preview {
   text-align: center;
   max-height: 300px;
   overflow: hidden;
-  border-radius: 8px;
-  background: #f5f5f5;
+  border-radius: var(--ws-radius-sm);
+  background: var(--ws-surface-raised);
+  border: 1px solid var(--ws-border-subtle);
 }
 
 .import-preview img {
   max-width: 100%;
   max-height: 300px;
   object-fit: contain;
+}
+
+.import-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.import-meta-tag {
+  display: inline-flex;
+  padding: 3px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ws-primary);
+  background: var(--ws-primary-soft);
+  border-radius: 20px;
+}
+
+.import-meta-text {
+  font-size: 13px;
+  color: var(--ws-text-secondary);
+}
+
+.import-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--ws-text-muted);
 }
 </style>

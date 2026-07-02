@@ -17,8 +17,27 @@ function labelColor(hex: string) {
   return isLightColor(hex) ? '#333' : '#fff'
 }
 
-function selectColor(colorId: string) {
+function onQuickColorClick(index: number, colorId: string | null, e: MouseEvent) {
+  if (!colorId) {
+    if (canvasStore.selectedColorId) {
+      settingsStore.setQuickColor(index, canvasStore.selectedColorId)
+    }
+    return
+  }
+  if (e.altKey && canvasStore.selectedColorId) {
+    settingsStore.setQuickColor(index, canvasStore.selectedColorId)
+    return
+  }
   canvasStore.setSelectedColor(colorId)
+}
+
+const { colorSelectPulse } = useGsapMotion()
+
+function onQuickColorClickWithMotion(index: number, colorId: string | null, e: MouseEvent) {
+  onQuickColorClick(index, colorId, e)
+  if (colorId && !e.altKey) {
+    colorSelectPulse(e.currentTarget as Element)
+  }
 }
 </script>
 
@@ -30,9 +49,8 @@ function selectColor(colorId: string) {
       class="quick-color-slot"
       :class="{ empty: !colorId, selected: colorId && canvasStore.selectedColorId === colorId }"
       :style="colorId ? { background: getHex(colorId) ?? '#ccc' } : undefined"
-      :title="colorId ?? '未设置'"
-      :disabled="!colorId"
-      @click="colorId && selectColor(colorId)"
+      :title="colorId ? `${colorId}（Alt+点击替换）` : (canvasStore.selectedColorId ? '点击添加当前选中色' : '未设置')"
+      @click="onQuickColorClickWithMotion(index, colorId, $event)"
     >
       <span
         v-if="colorId"
@@ -56,28 +74,34 @@ function selectColor(colorId: string) {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
+  width: 38px;
   height: 28px;
   border-radius: 6px;
-  border: 2px solid #ddd;
+  border: 2px solid var(--ws-border);
   cursor: pointer;
-  transition: transform 0.1s, border-color 0.1s;
+  transition: transform 0.12s, border-color 0.12s, box-shadow 0.12s;
   overflow: hidden;
 }
 
 .quick-color-slot.empty {
-  background: #f5f5f5;
-  cursor: default;
-  opacity: 0.5;
+  background: var(--ws-surface-raised);
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.quick-color-slot.empty:hover {
+  opacity: 1;
+  border-color: var(--ws-primary);
+  background: var(--ws-primary-soft);
 }
 
 .quick-color-slot:not(.empty):hover {
-  transform: scale(1.08);
+  transform: scale(1.06);
 }
 
 .quick-color-slot.selected {
-  border-color: #2080f0;
-  box-shadow: 0 0 0 2px rgba(32, 128, 240, 0.3);
+  border-color: var(--ws-primary);
+  box-shadow: 0 0 0 2px var(--ws-primary-ring);
 }
 
 .quick-color-label {
