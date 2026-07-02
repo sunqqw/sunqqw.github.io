@@ -61,7 +61,7 @@ export const useSettingsStore = defineStore('settings', {
     isPanning: false,
     canvasFixed: savedUi.canvasFixed ?? true,
     sidePanelCollapsed: savedUi.sidePanelCollapsed ?? false,
-    showQuickColors: savedUi.showQuickColors ?? true,
+    showQuickColors: savedUi.showQuickColors ?? false,
     quickColors: savedUi.quickColors ?? defaultQuickColors(),
   }),
 
